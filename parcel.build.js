@@ -7,5 +7,7 @@ const entryFiles = Path.join(__dirname, './src/index.html');
     await (new Bundler(entryFiles, {
         outDir: './docs',
         outFile: './index.html',
+        publicUrl: '.',
+        watch: false
     })).bundle();
 })();
