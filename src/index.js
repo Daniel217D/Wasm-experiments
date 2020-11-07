@@ -1,3 +1,5 @@
+import Logger from './Logger';
+
 const wasm_url = document.getElementById('wasm').getAttribute('src');
 
 /*
@@ -18,6 +20,7 @@ int*duplicate_arr(int*arr, unsigned int l) {
   return new_arr;
 }
  */
+const logger = new Logger('log');
 
 const importObj = {
     module: {},
@@ -33,12 +36,11 @@ WebAssembly.instantiateStreaming(fetch(wasm_url), importObj)
         const arr = [1,2,3,4,5,6,7,8,9,10];
         let typed_arr = new Int32Array(res.instance.exports.memory.buffer, 0, arr.length);
         typed_arr.set(arr);
-        console.log(typed_arr);
-        
-        console.log(res.instance.exports._sum(0, typed_arr.length));
+        logger.log(typed_arr, 'Типизированный маccив');
+        logger.log(res.instance.exports._sum(0, typed_arr.length), 'Сумма его элементов');
 
         const offset = res.instance.exports._duplicate_arr(0, typed_arr.length);
         typed_arr = new Int32Array(res.instance.exports.memory.buffer, offset, typed_arr.length * 2);
-        console.log(typed_arr);
-        console.log(res.instance.exports._sum(offset, typed_arr.length));
+        logger.log(typed_arr, 'Новый массив возвращенный из C++ функции');
+        logger.log(res.instance.exports._sum(offset, typed_arr.length), 'Сумма его элементов');
     });
