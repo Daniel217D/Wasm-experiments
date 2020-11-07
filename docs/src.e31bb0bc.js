@@ -117,7 +117,52 @@ parcelRequire = (function (modules, cache, entry, globalName) {
   }
 
   return newRequire;
-})({"index.js":[function(require,module,exports) {
+})({"Logger.js":[function(require,module,exports) {
+"use strict";
+
+Object.defineProperty(exports, "__esModule", {
+  value: true
+});
+exports.default = void 0;
+
+function _classCallCheck(instance, Constructor) { if (!(instance instanceof Constructor)) { throw new TypeError("Cannot call a class as a function"); } }
+
+function _defineProperties(target, props) { for (var i = 0; i < props.length; i++) { var descriptor = props[i]; descriptor.enumerable = descriptor.enumerable || false; descriptor.configurable = true; if ("value" in descriptor) descriptor.writable = true; Object.defineProperty(target, descriptor.key, descriptor); } }
+
+function _createClass(Constructor, protoProps, staticProps) { if (protoProps) _defineProperties(Constructor.prototype, protoProps); if (staticProps) _defineProperties(Constructor, staticProps); return Constructor; }
+
+var Logger = /*#__PURE__*/function () {
+  function Logger(id) {
+    _classCallCheck(this, Logger);
+
+    this.el = document.getElementById(id);
+    this.el.innerHTML = '';
+  }
+
+  _createClass(Logger, [{
+    key: "log",
+    value: function log(data) {
+      var message = arguments.length > 1 && arguments[1] !== undefined ? arguments[1] : "";
+
+      if (message.length > 0) {
+        message += ":";
+      }
+
+      this.el.innerHTML += "<pre>".concat(message, " ").concat(JSON.stringify(data), "</pre>");
+    }
+  }]);
+
+  return Logger;
+}();
+
+exports.default = Logger;
+},{}],"index.js":[function(require,module,exports) {
+"use strict";
+
+var _Logger = _interopRequireDefault(require("./Logger"));
+
+function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
+
 var wasm_url = document.getElementById('wasm').getAttribute('src');
 /*
 int sum(int*arr, unsigned int l) {
@@ -138,6 +183,7 @@ int*duplicate_arr(int*arr, unsigned int l) {
 }
  */
 
+var logger = new _Logger.default('log');
 var importObj = {
   module: {},
   env: {
@@ -150,14 +196,14 @@ WebAssembly.instantiateStreaming(fetch(wasm_url), importObj).then(function (res)
   var arr = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10];
   var typed_arr = new Int32Array(res.instance.exports.memory.buffer, 0, arr.length);
   typed_arr.set(arr);
-  console.log(typed_arr);
-  console.log(res.instance.exports._sum(0, typed_arr.length));
+  logger.log(typed_arr, 'Типизированный маccив');
+  logger.log(res.instance.exports._sum(0, typed_arr.length), 'Сумма его элементов');
 
   var offset = res.instance.exports._duplicate_arr(0, typed_arr.length);
 
   typed_arr = new Int32Array(res.instance.exports.memory.buffer, offset, typed_arr.length * 2);
-  console.log(typed_arr);
-  console.log(res.instance.exports._sum(offset, typed_arr.length));
+  logger.log(typed_arr, 'Новый массив возвращенный из C++ функции');
+  logger.log(res.instance.exports._sum(offset, typed_arr.length), 'Сумма его элементов');
 });
-},{}]},{},["index.js"], null)
+},{"./Logger":"Logger.js"}]},{},["index.js"], null)
 //# sourceMappingURL=src.e31bb0bc.js.map
