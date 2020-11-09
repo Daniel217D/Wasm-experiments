@@ -1,9 +1,10 @@
 import Logger from './Logger';
+import wasm from './Wasm';
 
 const wasm_url = document.getElementById('wasm').getAttribute('src');
 
 /*
-int sum(int*arr, unsigned int l) {
+int _sum(int*arr, unsigned int l) {
   int r = 0;
   for (int i = 0; i < l; i++) {
     r += arr[i];
@@ -11,7 +12,7 @@ int sum(int*arr, unsigned int l) {
   return r;
 }
 
-int*duplicate_arr(int*arr, unsigned int l) {
+int* _duplicate_arr(int*arr, unsigned int l) {
   int*new_arr = new int[l*2];
   for (unsigned int i = 0; i < l*2; i+=2) {
     new_arr[i] = arr[i / 2];
@@ -24,23 +25,22 @@ const logger = new Logger('log');
 
 const importObj = {
     module: {},
-    env: {
-        _Znaj: (x) => {
-            return 120;
-        }
+    functions: {
+        '_Znaj': 'malloc'
     }
 };
 
-WebAssembly.instantiateStreaming(fetch(wasm_url), importObj)
-    .then(res => {
-        const arr = [1,2,3,4,5,6,7,8,9,10];
-        let typed_arr = new Int32Array(res.instance.exports.memory.buffer, 0, arr.length);
-        typed_arr.set(arr);
-        logger.log(typed_arr, 'Типизированный маccив');
-        logger.log(res.instance.exports._sum(0, typed_arr.length), 'Сумма его элементов');
+const arr = [1,10];
 
-        const offset = res.instance.exports._duplicate_arr(0, typed_arr.length);
-        typed_arr = new Int32Array(res.instance.exports.memory.buffer, offset, typed_arr.length * 2);
-        logger.log(typed_arr, 'Новый массив возвращенный из C++ функции');
-        logger.log(res.instance.exports._sum(offset, typed_arr.length), 'Сумма его элементов');
-    });
+(async () => {
+    const w = await wasm(wasm_url, importObj);
+
+    logger.log(arr, 'Маccив');
+    logger.log(w.call('_sum', [{array: arr, type: 'Int32'}, arr.length]), 'Сумма его элементов');
+
+    let new_arr = w.call('_duplicate_arr',
+        [{array: arr, type: 'Int32'}, arr.length],
+        {type: 'int32', length: arr.length * 2, to_array: true});
+    logger.log(new_arr, 'Новый массив возвращенный из C++ функции');
+    logger.log(w.call('_sum', [{array: new_arr, type: 'Int32'}, new_arr.length]), 'Сумма его элементов');
+})();
