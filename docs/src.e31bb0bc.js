@@ -125,47 +125,160 @@ Object.defineProperty(exports, "__esModule", {
 });
 exports.default = void 0;
 
-function _classCallCheck(instance, Constructor) { if (!(instance instanceof Constructor)) { throw new TypeError("Cannot call a class as a function"); } }
-
-function _defineProperties(target, props) { for (var i = 0; i < props.length; i++) { var descriptor = props[i]; descriptor.enumerable = descriptor.enumerable || false; descriptor.configurable = true; if ("value" in descriptor) descriptor.writable = true; Object.defineProperty(target, descriptor.key, descriptor); } }
-
-function _createClass(Constructor, protoProps, staticProps) { if (protoProps) _defineProperties(Constructor.prototype, protoProps); if (staticProps) _defineProperties(Constructor, staticProps); return Constructor; }
-
-var Logger = /*#__PURE__*/function () {
-  function Logger(id) {
-    _classCallCheck(this, Logger);
-
+class Logger {
+  constructor(id) {
     this.el = document.getElementById(id);
     this.el.innerHTML = '';
   }
 
-  _createClass(Logger, [{
-    key: "log",
-    value: function log(data) {
-      var message = arguments.length > 1 && arguments[1] !== undefined ? arguments[1] : "";
-
-      if (message.length > 0) {
-        message += ":";
-      }
-
-      this.el.innerHTML += "<pre>".concat(message, " ").concat(JSON.stringify(data), "</pre>");
+  log(data, message = "") {
+    if (message.length > 0) {
+      message += ":";
     }
-  }]);
 
-  return Logger;
-}();
+    this.el.innerHTML += `<pre>${message} ${JSON.stringify(data)}</pre>`;
+  }
+
+}
 
 exports.default = Logger;
+},{}],"Wasm.js":[function(require,module,exports) {
+"use strict";
+
+Object.defineProperty(exports, "__esModule", {
+  value: true
+});
+exports.default = void 0;
+
+class Wasm {
+  _buffer;
+  _buffer_offset = 0;
+  _functions;
+
+  constructor() {//
+  }
+
+  init(data) {
+    this._buffer = data.buffer;
+    this._functions = data.functions;
+    return this;
+  } //ToDo add typed arrays to args
+
+
+  call(f_name, args, r_type = {}) {
+    args = args.map(val => {
+      if (typeof val === 'number') {
+        return val;
+      } else if (Array.isArray(val.array)) {
+        const arr = create_typed_array(val.type, this._buffer, this._buffer_offset, val.array);
+        this._buffer_offset += arr.byteLength;
+        return this._buffer_offset - arr.byteLength;
+      }
+
+      throw new Error(`Unsupported variable type`);
+    });
+
+    let result = this._functions[f_name](...args);
+
+    if (r_type.type && r_type.length) {
+      result = create_typed_array(r_type.type, this._buffer, result, r_type.length);
+
+      if (r_type.to_array) {
+        result = Array.from(result);
+      }
+    }
+
+    return result;
+  }
+
+  malloc(size) {
+    this._buffer_offset += size;
+    return this._buffer_offset - size;
+  }
+
+}
+
+const create_typed_array = (type, buffer, offset = 0, array_or_length) => {
+  const array_types = {
+    'int8': Int8Array,
+    'uint8': Uint8Array,
+    'int16': Int16Array,
+    'uint16': Uint16Array,
+    'int32': Int32Array,
+    'uint32': Uint32Array,
+    'float32': Float32Array,
+    'float64': Float64Array,
+    'bigint64': BigInt64Array,
+    'biguint64': BigUint64Array
+  };
+  type = array_types[type.toLowerCase()];
+
+  if (!type) {
+    throw new Error(`Array types: ${Object.keys(array_types).join(', ')}. ${type.toLowerCase()} not included`);
+  }
+
+  const typed_array = new type(buffer, offset, Array.isArray(array_or_length) ? array_or_length.length : array_or_length);
+
+  if (array_or_length.length && array_or_length.length > 0) {
+    typed_array.set(array_or_length);
+  }
+
+  return typed_array;
+};
+
+var _default = async (url, importObj = {}) => {
+  const wasm = new Wasm();
+
+  if (importObj.functions) {
+    if (!importObj.env) {
+      importObj.env = {};
+    }
+
+    const functions = Object.entries(importObj.functions).reduce((res, [name, value]) => {
+      if (typeof value === 'string' && wasm[value]) {
+        res[name] = wasm[value].bind(wasm);
+      }
+
+      if (typeof value === 'function') {
+        res[name] = value;
+      }
+
+      return res;
+    }, {});
+    importObj.env = { ...functions,
+      ...importObj.env
+    };
+  }
+
+  const data = await WebAssembly.instantiateStreaming(fetch(url), importObj).then(r => r).catch(() => {
+    return fetch(url).then(response => response.arrayBuffer()).then(bytes => WebAssembly.instantiate(bytes, importObj)).then(r => r);
+  });
+  return wasm.init({
+    // module: data.module,
+    buffer: data.instance.exports.memory.buffer,
+    functions: Object.entries(data.instance.exports).reduce((res, [key, value]) => {
+      return key === 'memory' ? res : { ...res,
+        ...{
+          [key]: value
+        }
+      };
+    }, {})
+  });
+};
+
+exports.default = _default;
 },{}],"index.js":[function(require,module,exports) {
 "use strict";
 
 var _Logger = _interopRequireDefault(require("./Logger"));
 
+var _Wasm = _interopRequireDefault(require("./Wasm"));
+
 function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
 
-var wasm_url = document.getElementById('wasm').getAttribute('src');
+const wasm_url = document.getElementById('wasm').getAttribute('src');
 /*
-int sum(int*arr, unsigned int l) {
+int _sum(int*arr, unsigned int l) {
   int r = 0;
   for (int i = 0; i < l; i++) {
     r += arr[i];
@@ -173,7 +286,7 @@ int sum(int*arr, unsigned int l) {
   return r;
 }
 
-int*duplicate_arr(int*arr, unsigned int l) {
+int* _duplicate_arr(int*arr, unsigned int l) {
   int*new_arr = new int[l*2];
   for (unsigned int i = 0; i < l*2; i+=2) {
     new_arr[i] = arr[i / 2];
@@ -183,27 +296,35 @@ int*duplicate_arr(int*arr, unsigned int l) {
 }
  */
 
-var logger = new _Logger.default('log');
-var importObj = {
+const logger = new _Logger.default('log');
+const importObj = {
   module: {},
-  env: {
-    _Znaj: function _Znaj(x) {
-      return 120;
-    }
+  functions: {
+    '_Znaj': 'malloc'
   }
 };
-WebAssembly.instantiateStreaming(fetch(wasm_url), importObj).then(function (res) {
-  var arr = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10];
-  var typed_arr = new Int32Array(res.instance.exports.memory.buffer, 0, arr.length);
-  typed_arr.set(arr);
-  logger.log(typed_arr, 'Типизированный маccив');
-  logger.log(res.instance.exports._sum(0, typed_arr.length), 'Сумма его элементов');
+const arr = [1, 10];
 
-  var offset = res.instance.exports._duplicate_arr(0, typed_arr.length);
-
-  typed_arr = new Int32Array(res.instance.exports.memory.buffer, offset, typed_arr.length * 2);
-  logger.log(typed_arr, 'Новый массив возвращенный из C++ функции');
-  logger.log(res.instance.exports._sum(offset, typed_arr.length), 'Сумма его элементов');
-});
-},{"./Logger":"Logger.js"}]},{},["index.js"], null)
+(async () => {
+  const w = await (0, _Wasm.default)(wasm_url, importObj);
+  logger.log(arr, 'Маccив');
+  logger.log(w.call('_sum', [{
+    array: arr,
+    type: 'Int32'
+  }, arr.length]), 'Сумма его элементов');
+  let new_arr = w.call('_duplicate_arr', [{
+    array: arr,
+    type: 'Int32'
+  }, arr.length], {
+    type: 'int32',
+    length: arr.length * 2,
+    to_array: true
+  });
+  logger.log(new_arr, 'Новый массив возвращенный из C++ функции');
+  logger.log(w.call('_sum', [{
+    array: new_arr,
+    type: 'Int32'
+  }, new_arr.length]), 'Сумма его элементов');
+})();
+},{"./Logger":"Logger.js","./Wasm":"Wasm.js"}]},{},["index.js"], null)
 //# sourceMappingURL=src.e31bb0bc.js.map
