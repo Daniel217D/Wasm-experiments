@@ -17,7 +17,7 @@ class Wasm {
         args = args.map(val => {
             if (typeof val === 'number') {
                 return val;
-            } else if (Array.isArray(val.array)) {
+            } else if (val.array && Array.isArray(val.array)) {
                 const arr = create_typed_array(val.type, this._buffer, this._buffer_offset, val.array);
                 this._buffer_offset += arr.byteLength;
                 return this._buffer_offset - arr.byteLength;
