@@ -23,7 +23,17 @@ class Wasm {
                 return this._buffer_offset - arr.byteLength;
             } else if(val.array && Object.values(array_types).some(type => val.array.constructor === type)) {
                 return val.array.byteOffset;
+            } else if (val.matrix) {
+                const pointers = val.matrix.map( sub_arr => {
+                    const arr = create_typed_array(val.type, this._buffer, this._buffer_offset, sub_arr);
+                    this._buffer_offset += arr.byteLength;
+                    return this._buffer_offset - arr.byteLength;
+                });
+                const arr = create_typed_array(val.type, this._buffer, this._buffer_offset, pointers);
+                this._buffer_offset += arr.byteLength;
+                return this._buffer_offset - arr.byteLength;
             }
+
             throw new Error(`Unsupported variable type`)
         });
 
