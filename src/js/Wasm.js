@@ -13,7 +13,6 @@ class Wasm {
         return this;
     }
 
-    //ToDo add typed arrays to args
     call(f_name, args, r_type = {}) {
         args = args.map(val => {
             if (typeof val === 'number') {
@@ -22,6 +21,8 @@ class Wasm {
                 const arr = create_typed_array(val.type, this._buffer, this._buffer_offset, val.array);
                 this._buffer_offset += arr.byteLength;
                 return this._buffer_offset - arr.byteLength;
+            } else if(val.array && Object.values(array_types).some(type => val.array.constructor === type)) {
+                return val.array.byteOffset;
             }
             throw new Error(`Unsupported variable type`)
         });
@@ -43,20 +44,20 @@ class Wasm {
     }
 }
 
-const create_typed_array = (type, buffer, offset = 0, array_or_length) => {
-    const array_types = {
-        'int8': Int8Array,
-        'uint8': Uint8Array,
-        'int16': Int16Array,
-        'uint16': Uint16Array,
-        'int32': Int32Array,
-        'uint32': Uint32Array,
-        'float32': Float32Array,
-        'float64': Float64Array,
-        'bigint64': BigInt64Array,
-        'biguint64': BigUint64Array,
-    };
+const array_types = {
+    'int8': Int8Array,
+    'uint8': Uint8Array,
+    'int16': Int16Array,
+    'uint16': Uint16Array,
+    'int32': Int32Array,
+    'uint32': Uint32Array,
+    'float32': Float32Array,
+    'float64': Float64Array,
+    'bigint64': BigInt64Array,
+    'biguint64': BigUint64Array,
+};
 
+const create_typed_array = (type, buffer, offset = 0, array_or_length) => {
     type = array_types[type.toLowerCase()];
 
     if (!type) {
