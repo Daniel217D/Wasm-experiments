@@ -15,4 +15,14 @@ extern "C" {
     }
     return new_arr;
   }
+
+  int _sum_matrix(int **arr, unsigned int rows, unsigned int cols) {
+      int r = 0;
+      for (int i = 0; i < rows; i++) {
+          for (int j = 0; i < cols; j++) {
+              r += arr[i][j];
+          }
+      }
+      return r;
+  }
 }
